@@ -1,0 +1,114 @@
+# Cloud Build configuration for Amazon KPI Automation
+# Builds Docker image and deploys to Cloud Run
+
+substitutions:
+  _SERVICE_NAME: amazon-kpi-automation
+  _REGION: europe-west1
+  _MEMORY: 2Gi
+  _CPU: '2'
+  _TIMEOUT: 900s
+  _CONCURRENCY: '1'
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
+      - '-f'
+      - 'docker/Dockerfile'
+      - '.'
+    id: 'build'
+
+  # Step 2: Push to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
+    id: 'push-sha'
+    waitFor: ['build']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
+    id: 'push-latest'
+    waitFor: ['build']
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '${_MEMORY}'
+      - '--cpu'
+      - '${_CPU}'
+      - '--timeout'
+      - '${_TIMEOUT}'
+      - '--concurrency'
+      - '${_CONCURRENCY}'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '1'
+      - '--no-allow-unauthenticated'
+      - '--service-account'
+      - 'amazon-kpi-runner@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=$PROJECT_ID'
+    id: 'deploy'
+    waitFor: ['push-sha']
+
+  # Step 4: Setup Cloud Scheduler (only on main branch)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Get the Cloud Run service URL
+        SERVICE_URL=$(gcloud run services describe ${_SERVICE_NAME} \
+          --region=${_REGION} \
+          --format='value(status.url)')
+
+        # Delete existing scheduler job if exists
+        gcloud scheduler jobs delete amazon-kpi-weekly \
+          --location=${_REGION} \
+          --quiet || true
+
+        # Create scheduler job
+        gcloud scheduler jobs create http amazon-kpi-weekly \
+          --location=${_REGION} \
+          --schedule="0 10 * * 1" \
+          --time-zone="Europe/Rome" \
+          --uri="$SERVICE_URL/run" \
+          --http-method=POST \
+          --oidc-service-account-email=amazon-kpi-scheduler@$PROJECT_ID.iam.gserviceaccount.com \
+          --oidc-token-audience="$SERVICE_URL" \
+          --description="Trigger weekly Amazon KPI extraction every Monday at 10:00 CET"
+    id: 'setup-scheduler'
+    waitFor: ['deploy']
+
+# Build options
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+# Store built images
+images:
+  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
+
+# Build timeout
+timeout: '1800s'

@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "amazon-kpi-automation"
+version = "1.0.0"
+description = "Automated KPI extraction from Sellerboard and Google Sheets reporting"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Amazon KPI Team" }]
+
+dependencies = [
+    "playwright>=1.40.0",
+    "pydantic>=2.5.0",
+    "pandas>=2.1.0",
+    "gspread>=6.0.0",
+    "google-cloud-secret-manager>=2.16.0",
+    "google-api-python-client>=2.108.0",
+    "google-auth>=2.23.0",
+    "flask>=3.0.0",
+    "gunicorn>=21.2.0",
+    "tenacity>=8.2.0",
+    "structlog>=23.2.0",
+    "python-dotenv>=1.0.0",
+    "python-amazon-sp-api>=0.3.12",
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[project.scripts]
+amazon-kpi = "amazon_kpi.main:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/amazon_kpi"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
