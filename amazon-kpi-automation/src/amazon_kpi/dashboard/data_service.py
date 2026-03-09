@@ -100,6 +100,13 @@ class DashboardDataService:
         self._factory = SPAPIClientFactory()
         self._data_kiosk = DataKioskService(self._factory)
 
+    def clear_cache(self) -> None:
+        """Delete all filesystem cache files."""
+        if CACHE_DIR.exists():
+            for f in CACHE_DIR.glob("*.json"):
+                f.unlink()
+            logger.info("Cleared filesystem cache")
+
     def has_cached_data(self, week_start: date, week_end: date) -> bool:
         """Check if cached data exists for the given week."""
         CACHE_DIR.mkdir(parents=True, exist_ok=True)

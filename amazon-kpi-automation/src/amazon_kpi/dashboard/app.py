@@ -68,9 +68,12 @@ def _run_dashboard() -> None:
     # Sidebar
     sidebar = render_sidebar()
 
-    # Clear cache on refresh
+    # Clear ALL caches on refresh (memory + filesystem + session state)
     if sidebar["refresh"]:
         st.cache_resource.clear()
+        service = get_data_service()
+        service.clear_cache()
+        st.session_state.fetch_data = False
         st.rerun()
 
     # Use session state to track if data should be fetched
