@@ -70,7 +70,7 @@ def _run_dashboard() -> None:
 
     # Clear cache on refresh
     if sidebar["refresh"]:
-        st.cache_data.clear()
+        st.cache_resource.clear()
         st.rerun()
 
     # Use session state to track if data should be fetched
@@ -184,7 +184,7 @@ def _run_dashboard() -> None:
         )
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_resource(ttl=3600, show_spinner=False)
 def _fetch_cached(_service, week_start, week_end):
     """Cache wrapper for data fetching (TTL=1 hour)."""
     return _service.fetch_weekly_data(week_start, week_end)
