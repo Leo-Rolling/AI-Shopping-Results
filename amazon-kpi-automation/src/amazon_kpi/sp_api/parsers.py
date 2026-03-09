@@ -87,6 +87,103 @@ def parse_sales_traffic(
     )
 
 
+def parse_economics(
+    records: list[dict[str, Any]],
+    marketplace: Marketplace,
+) -> MarketplaceKPIs:
+    """Parse Data Kiosk economics JSONL records into MarketplaceKPIs.
+
+    Extracts: ad_spend, ppc_sales (from ads), amazon_costs (fees), net_profit (netProceeds).
+    """
+    category_kpis: dict[str, list[KPIData]] = defaultdict(list)
+    uncategorized: list[KPIData] = []
+
+    for record in records:
+        items = _extract_items(record, "economics")
+
+        for item in items:
+            kpi = _economics_item_to_kpi_data(item)
+            sku = item.get("msku", "")
+
+            category = get_category_for_sku(sku) if sku else None
+            if category:
+                category_kpis[category.name].append(kpi)
+            else:
+                uncategorized.append(kpi)
+
+    categories: dict[str, KPIData] = {}
+    for cat_name, kpis in category_kpis.items():
+        categories[cat_name] = _sum_kpis(kpis)
+
+    if uncategorized:
+        categories["other"] = _sum_kpis(uncategorized)
+
+    all_kpis = list(categories.values())
+    total = _sum_kpis(all_kpis) if all_kpis else None
+
+    logger.info(
+        "Parsed economics data",
+        marketplace=marketplace.value,
+        categories=len(categories),
+        total_records=len(records),
+    )
+
+    return MarketplaceKPIs(
+        marketplace=marketplace,
+        categories=categories,
+        total=total,
+    )
+
+
+def _economics_item_to_kpi_data(item: dict[str, Any]) -> KPIData:
+    """Convert a single economics item to KPIData (ads, fees, net proceeds).
+
+    Schema: analytics_economics_2024_03_15
+    - ads: list of {adTypeName, charge: {totalAmount: {amount, currencyCode}}}
+    - cost: {costOfGoodsSold: {amount, currencyCode}}
+    - netProceeds: {total: {amount, currencyCode}}
+    """
+    # Ad spend — sum across all ad types (Sponsored Products, Brands, etc.)
+    ad_spend = Decimal("0")
+    ads_list = item.get("ads", []) or []
+    for ad in ads_list:
+        charge = ad.get("charge", {}) or {}
+        total_amount = charge.get("totalAmount", {}) or {}
+        ad_spend += Decimal(str(total_amount.get("amount", 0)))
+
+    # Net proceeds (= net profit from Amazon's perspective)
+    net_proceeds = item.get("netProceeds", {}) or {}
+    net_total = net_proceeds.get("total", {}) or {}
+    net_profit = Decimal(str(net_total.get("amount", 0)))
+
+    # COGS
+    cost_obj = item.get("cost", {}) or {}
+    cogs_obj = cost_obj.get("costOfGoodsSold", {}) or {}
+    cogs = Decimal(str(cogs_obj.get("amount", 0)))
+
+    # Sales data from economics (for PPC sales approximation)
+    sales = item.get("sales", {}) or {}
+    ordered_sales = sales.get("orderedProductSales", {}) or {}
+    gross_sales = Decimal(str(ordered_sales.get("amount", 0)))
+
+    # PPC Sales approximation: if there's ad spend, attribute the product's
+    # sales as PPC-driven. This is an approximation — the actual PPC sales
+    # come from the Amazon Ads API which we don't use yet.
+    ppc_sales = gross_sales if ad_spend > 0 else Decimal("0")
+
+    return KPIData(
+        gross_sales=gross_sales,
+        ad_spend=ad_spend,
+        ppc_sales=ppc_sales,
+        net_profit=net_profit,
+        amazon_costs=Decimal("0"),
+        cogs=cogs,
+        units_sold=int(sales.get("unitsOrdered", 0)),
+        orders=0,  # economics doesn't have order count
+        refunds=Decimal(str(sales.get("unitsRefunded", 0))),
+    )
+
+
 def parse_sales_traffic_by_date(
     records: list[dict[str, Any]],
     marketplace: Marketplace,

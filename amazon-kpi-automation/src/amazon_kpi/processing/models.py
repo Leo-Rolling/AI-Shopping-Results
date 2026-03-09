@@ -157,7 +157,7 @@ class KPIData(BaseModel):
 class MarketplaceKPIs(BaseModel):
     """KPI data for a single marketplace across all categories."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, revalidate_instances="never")
 
     marketplace: Marketplace
     categories: dict[str, KPIData] = Field(
@@ -171,7 +171,7 @@ class MarketplaceKPIs(BaseModel):
 class CategoryKPIs(BaseModel):
     """KPI data for a single category across all marketplaces."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, revalidate_instances="never")
 
     category_name: str
     category_display_name: str
@@ -186,7 +186,7 @@ class CategoryKPIs(BaseModel):
 class WeeklyReport(BaseModel):
     """Complete weekly report containing all KPI data."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, revalidate_instances="never")
 
     week_start: date
     week_end: date

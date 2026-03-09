@@ -155,6 +155,49 @@ BRAND_ANALYTICS_REPEAT_PURCHASE: Final[str] = """\
 """
 
 
+# ---------------------------------------------------------------------------
+# Economics (ads, fees, net proceeds, COGS) — by MSKU, weekly range
+# ---------------------------------------------------------------------------
+ECONOMICS_BY_MSKU: Final[str] = """\
+{{
+  analytics_economics_2024_03_15 {{
+    economics(
+      startDate: "{start_date}"
+      endDate: "{end_date}"
+      marketplaceIds: ["{marketplace_id}"]
+      aggregateBy: {{ date: RANGE, productId: MSKU }}
+    ) {{
+      msku
+      childAsin
+      parentAsin
+      startDate
+      endDate
+      marketplaceId
+      sales {{
+        orderedProductSales {{ amount currencyCode }}
+        netProductSales {{ amount currencyCode }}
+        unitsOrdered
+        unitsRefunded
+        netUnitsSold
+      }}
+      ads {{
+        adTypeName
+        charge {{
+          totalAmount {{ amount currencyCode }}
+        }}
+      }}
+      cost {{
+        costOfGoodsSold {{ amount currencyCode }}
+      }}
+      netProceeds {{
+        total {{ amount currencyCode }}
+      }}
+    }}
+  }}
+}}
+"""
+
+
 def build_query(template: str, **kwargs: str) -> str:
     """Build a GraphQL query from a template with parameters.
 

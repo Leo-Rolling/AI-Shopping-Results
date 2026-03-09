@@ -1,0 +1,44 @@
+steps:
+  # Build the prefetch service image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/amazon-kpi-prefetch:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/amazon-kpi-prefetch:latest'
+      - '-f'
+      - 'docker/Dockerfile.prefetch'
+      - '.'
+
+  # Push the image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'gcr.io/$PROJECT_ID/amazon-kpi-prefetch'
+
+  # Deploy as Cloud Run service (public, API key protected)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'amazon-kpi-prefetch'
+      - '--image=gcr.io/$PROJECT_ID/amazon-kpi-prefetch:$SHORT_SHA'
+      - '--region=europe-west1'
+      - '--platform=managed'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--timeout=1800'
+      - '--concurrency=1'
+      - '--port=8080'
+      - '--allow-unauthenticated'
+      - '--service-account=amazon-kpi-runner@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,USE_ENV_SECRETS=false'
+
+images:
+  - 'gcr.io/$PROJECT_ID/amazon-kpi-prefetch'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
