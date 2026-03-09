@@ -69,15 +69,20 @@ def render_sidebar() -> dict[str, Any]:
 
     st.sidebar.markdown("---")
 
-    # EUR/USD rate
+    # EUR/USD rate — persist in session state so it survives reruns
+    if "eur_usd_rate" not in st.session_state:
+        st.session_state.eur_usd_rate = EUR_TO_USD_RATE
+
     eur_usd_rate = st.sidebar.number_input(
         "EUR/USD Rate",
-        value=EUR_TO_USD_RATE,
+        value=st.session_state.eur_usd_rate,
         min_value=0.50,
         max_value=2.00,
         step=0.01,
         format="%.2f",
+        key="eur_usd_input",
     )
+    st.session_state.eur_usd_rate = eur_usd_rate
 
     st.sidebar.markdown("---")
 
