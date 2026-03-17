@@ -7,7 +7,7 @@ from .constants import (
     EUR_TO_USD_RATE,
     CURRENCY_SYMBOLS,
 )
-from .sku_categories import CATEGORY_SKUS, CATEGORIES
+from .sku_categories import CATEGORY_MAP, CATEGORIES
 
 __all__ = [
     "KPI_NAMES",
@@ -15,6 +15,6 @@ __all__ = [
     "REGIONS",
     "EUR_TO_USD_RATE",
     "CURRENCY_SYMBOLS",
-    "CATEGORY_SKUS",
+    "CATEGORY_MAP",
     "CATEGORIES",
 ]

@@ -10,6 +10,7 @@ from typing import Any
 import structlog
 
 from .config.constants import Marketplace, Region
+from .config.sku_categories import get_category_for_sku as _get_category_obj
 from .processing.models import KPIData, WeeklyReport, MarketplaceKPIs, CategoryKPIs
 
 logger = structlog.get_logger(__name__)
@@ -28,15 +29,6 @@ MARKETPLACE_MAP = {
 # Region mappings
 EU_MARKETPLACES = {Marketplace.UK, Marketplace.DE, Marketplace.FR, Marketplace.IT, Marketplace.ES}
 US_MARKETPLACES = {Marketplace.US, Marketplace.CA}
-
-# SKU to Category mapping patterns (based on actual Rolling Square products)
-CATEGORY_PATTERNS = {
-    "trackers": ["ACP", "ANP", "AIR"],  # AirCard Pro, AirNotch Pro, AirCard
-    "incharge": ["SIX", "X01", "X02", "X03", "XLL", "XLM", "XLS", "XLXS", "XS0", "GW-", "H9-", "67-", "4C-", "3M-"],  # inCharge cables
-    "edge_pro": ["EPC", "EPK", "EPCC", "EKIT", "1AU"],  # Edge Pro products
-    "adapters": ["ST65", "ST14", "TRAV"],  # SuperTiny chargers, Travel adapters
-    "power_banks": ["TAU"],  # TAU power banks
-}
 
 
 def parse_decimal(value: str) -> Decimal:
@@ -66,13 +58,9 @@ def parse_int(value: str) -> int:
 
 
 def get_category_for_sku(sku: str) -> str | None:
-    """Determine category based on SKU prefix."""
-    sku_upper = sku.upper()
-    for category, patterns in CATEGORY_PATTERNS.items():
-        for pattern in patterns:
-            if pattern in sku_upper:
-                return category
-    return None
+    """Determine category based on SKU prefix (delegates to sku_categories)."""
+    cat = _get_category_obj(sku)
+    return cat.name if cat else None
 
 
 def parse_dashboard_goods_csv(file_path: Path) -> dict[str, dict[Marketplace, dict[str, Any]]]:

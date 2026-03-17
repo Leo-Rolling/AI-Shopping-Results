@@ -16,7 +16,7 @@ import pandas as pd
 import structlog
 
 from ..config.constants import Marketplace
-from ..config.sku_categories import get_category_for_sku
+from ..config.sku_categories import get_category_for_asin, get_category_for_sku, resolve_sku
 from ..processing.models import KPIData, MarketplaceKPIs
 
 logger = structlog.get_logger(__name__)
@@ -53,8 +53,13 @@ def parse_sales_traffic(
         for item in items:
             kpi = _item_to_kpi_data(item)
             sku = item.get("sku", "")
+            asin = item.get("childAsin", "") or item.get("parentAsin", "")
 
+            # Try SKU first, then ASIN lookup
             category = get_category_for_sku(sku) if sku else None
+            if category is None and asin:
+                category = get_category_for_asin(asin)
+
             if category:
                 category_kpis[category.name].append(kpi)
             else:
@@ -77,6 +82,7 @@ def parse_sales_traffic(
         "Parsed sales & traffic data",
         marketplace=marketplace.value,
         categories=len(categories),
+        uncategorized=len(uncategorized),
         total_records=len(records),
     )
 
@@ -104,8 +110,13 @@ def parse_economics(
         for item in items:
             kpi = _economics_item_to_kpi_data(item)
             sku = item.get("msku", "")
+            asin = item.get("childAsin", "") or item.get("parentAsin", "")
 
+            # Try MSKU first, then ASIN lookup
             category = get_category_for_sku(sku) if sku else None
+            if category is None and asin:
+                category = get_category_for_asin(asin)
+
             if category:
                 category_kpis[category.name].append(kpi)
             else:
@@ -125,6 +136,7 @@ def parse_economics(
         "Parsed economics data",
         marketplace=marketplace.value,
         categories=len(categories),
+        uncategorized=len(uncategorized),
         total_records=len(records),
     )
 
