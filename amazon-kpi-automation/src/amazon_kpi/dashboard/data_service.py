@@ -137,19 +137,21 @@ class DashboardDataService:
 
         results: dict[Marketplace, MarketplaceKPIs] = {}
 
-        with ThreadPoolExecutor(max_workers=7) as executor:
-            futures = {}
-            for mp in MARKETPLACES:
-                future = executor.submit(
-                    self._fetch_single_marketplace, mp, week_start, week_end
-                )
-                futures[future] = mp
+        # Group marketplaces by seller account to avoid Data Kiosk rate limits.
+        # Process one marketplace at a time per account (2 accounts in parallel).
+        from ..config.constants import MARKETPLACE_ACCOUNT, SellerAccount
+        account_groups: dict[SellerAccount, list[Marketplace]] = {}
+        for mp in MARKETPLACES:
+            acct = MARKETPLACE_ACCOUNT[mp]
+            account_groups.setdefault(acct, []).append(mp)
 
-            for future in as_completed(futures):
-                mp = futures[future]
+        def _fetch_account_group(marketplaces: list[Marketplace]) -> dict[Marketplace, MarketplaceKPIs]:
+            """Fetch marketplaces sequentially within one account."""
+            group_results: dict[Marketplace, MarketplaceKPIs] = {}
+            for mp in marketplaces:
                 try:
-                    mp_kpis = future.result()
-                    results[mp] = mp_kpis
+                    mp_kpis = self._fetch_single_marketplace(mp, week_start, week_end)
+                    group_results[mp] = mp_kpis
                     if progress_callback:
                         progress_callback(mp.value, "done")
                     logger.info("Fetched marketplace data", marketplace=mp.value)
@@ -157,8 +159,17 @@ class DashboardDataService:
                     logger.error("Failed to fetch marketplace", marketplace=mp.value, error=str(e))
                     if progress_callback:
                         progress_callback(mp.value, f"error: {e}")
-                    # Create empty KPIs for failed marketplaces
-                    results[mp] = MarketplaceKPIs(marketplace=mp)
+                    group_results[mp] = MarketplaceKPIs(marketplace=mp)
+            return group_results
+
+        # Run account groups in parallel (EU_UK and NA simultaneously)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = {
+                executor.submit(_fetch_account_group, mps): acct
+                for acct, mps in account_groups.items()
+            }
+            for future in as_completed(futures):
+                results.update(future.result())
 
         # Save to cache
         self._save_to_cache(week_start, week_end, results)
