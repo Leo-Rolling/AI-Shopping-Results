@@ -19,7 +19,7 @@ class KPIData(BaseModel):
     orders: int = Field(default=0, description="Number of orders")
     refunds: Decimal = Field(default=Decimal("0"), description="Total refund amount")
     refund_rate: Decimal = Field(
-        default=Decimal("0"), ge=0, le=100, description="Refund rate percentage"
+        default=Decimal("0"), ge=0, description="Refund rate percentage"
     )
     promo_rebates: Decimal = Field(default=Decimal("0"), description="Promotional rebates")
     amazon_costs: Decimal = Field(default=Decimal("0"), description="Amazon fees and costs")
