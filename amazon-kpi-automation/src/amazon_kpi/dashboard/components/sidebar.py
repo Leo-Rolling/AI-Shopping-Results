@@ -97,8 +97,15 @@ def render_sidebar() -> dict[str, Any]:
 
     st.sidebar.markdown("---")
 
-    # Refresh button
+    # Refresh button (reload from filesystem cache — fast)
     refresh = st.sidebar.button("Refresh Data", use_container_width=True)
+
+    # Full re-fetch from SP-API (slow — clears all caches)
+    full_refresh = st.sidebar.button(
+        "Re-fetch from SP-API",
+        use_container_width=True,
+        help="Clears all caches and re-fetches data from Amazon SP-API (~10 min)",
+    )
 
     # Info
     st.sidebar.markdown("---")
@@ -120,4 +127,5 @@ def render_sidebar() -> dict[str, Any]:
         "eur_usd_rate": eur_usd_rate,
         "uploaded_csvs": uploaded_csvs,
         "refresh": refresh,
+        "full_refresh": full_refresh,
     }

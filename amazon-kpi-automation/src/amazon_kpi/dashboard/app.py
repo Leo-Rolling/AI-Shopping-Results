@@ -68,8 +68,14 @@ def _run_dashboard() -> None:
     # Sidebar
     sidebar = render_sidebar()
 
-    # Clear ALL caches on refresh (memory + filesystem + session state)
+    # Clear Streamlit memory caches on refresh (keep filesystem cache for fast reload)
     if sidebar["refresh"]:
+        st.cache_resource.clear()
+        st.session_state.fetch_data = False
+        st.rerun()
+
+    # Full re-fetch button in sidebar also clears filesystem cache
+    if sidebar.get("full_refresh"):
         st.cache_resource.clear()
         service = get_data_service()
         service.clear_cache()
